@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>アメリカ50州名ゲーム 本格地図版</title>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:rgba(0,0,0,0);}
+html,body{margin:0;padding:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;background:#f3f6fb;color:#1f2937;}
+body{-webkit-text-size-adjust:100%;}
+.wrap{max-width:1200px;margin:0 auto;padding:14px;}
+h1{font-size:26px;margin:0 0 6px;line-height:1.25;}
+.lead{margin:0 0 12px;color:#526070;line-height:1.6;font-size:14px;}
+.app{display:block;}
+.mapcard,.panel{background:#fff;border:1px solid #dde3ee;border-radius:16px;box-shadow:0 4px 12px rgba(15,23,42,.06);}
+.mapcard{padding:10px;margin-bottom:12px;overflow:hidden;}
+.panel{padding:12px;}
+.tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.pill{display:inline-block;border:1px solid #d8e1ef;border-radius:999px;padding:6px 10px;background:#f8fbff;color:#475569;font-size:13px;}
+svg{width:100%;height:auto;display:block;background:#e7f5ff;border:1px solid #c9e2f7;border-radius:12px;touch-action:manipulation;}
+.statePath{fill:#f8fafc;stroke:#64748b;stroke-width:.8;vector-effect:non-scaling-stroke;}
+.statePath.dim{opacity:.2;}
+.statePath.target{fill:#ffe083;stroke:#9a5a00;stroke-width:2.2;}
+.statePath.done{fill:#b7ead0;stroke:#28835a;}
+.stateLabel{pointer-events:none;font-weight:800;fill:#111827;text-anchor:middle;dominant-baseline:central;display:none;}
+.stateLabel.show{display:block;}
+.targetMark{pointer-events:none;font-size:22px;font-weight:900;fill:#7a4500;text-anchor:middle;dominant-baseline:central;}
+.regionText{font-size:13px;fill:#64748b;font-weight:700;}
+.row{margin-bottom:10px;}
+label{display:block;font-weight:800;margin-bottom:6px;}
+select,input,button{font-size:16px;width:100%;border-radius:12px;padding:12px;border:1px solid #cbd5e1;background:#fff;color:#111827;}
+input{-webkit-appearance:none;appearance:none;}
+input:focus,select:focus{outline:3px solid #bfdbfe;border-color:#60a5fa;}
+button{border:0;background:#2563eb;color:#fff;font-weight:900;min-height:46px;touch-action:manipulation;}
+button:disabled{opacity:.45;}
+button.secondary{background:#eaf2ff;color:#1d4ed8;border:1px solid #bcd4ff;}
+button.ghost{background:#fff;color:#374151;border:1px solid #cbd5e1;}
+button:active{transform:translateY(1px);}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.score{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin:10px 0;}
+.score div{text-align:center;border:1px solid #e2e8f0;background:#f8fafc;border-radius:12px;padding:8px;}
+.score span{display:block;font-size:12px;color:#64748b;}
+.score b{font-size:21px;}
+.status{min-height:68px;line-height:1.6;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px;}
+.ok{color:#047857;font-weight:900;}
+.bad{color:#dc2626;font-weight:900;}
+.small{font-size:13px;color:#64748b;line-height:1.55;}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:#475569;}
+.sw{display:inline-block;width:14px;height:14px;border:1px solid #777;border-radius:4px;margin-right:4px;vertical-align:-2px;}
+.wrong{background:#fff1f2!important;border-color:#dc2626!important;}
+.choiceGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.choiceBtn{background:#fff;color:#111827;border:1px solid #cbd5e1;font-weight:900;min-height:52px;}
+.choiceBtn:disabled{opacity:1;}
+.choiceBtn.wrongChoice{background:#fee2e2;color:#991b1b;border:2px solid #dc2626;}
+.choiceBtn.correctChoice{background:#dcfce7;color:#166534;border:2px solid #16a34a;}
+.choiceBtn.locked{opacity:.55;}
+.hidden{display:none!important;}
+.inputGrid{display:grid;grid-template-columns:1fr 110px;gap:8px;}
+.inputGrid button{width:100%;}
+.timeWarn{color:#dc2626!important;font-weight:900;}
+.timeUp{background:#fff7ed;border-color:#fb923c;}
+.hintBox{font-size:28px;text-align:center;font-weight:900;margin:10px 0;color:#1d4ed8;}
+.loading{fill:#64748b;font-size:20px;font-weight:800;}
+@media (max-width:520px){.inputGrid{grid-template-columns:1fr;}.score b{font-size:18px;}.score{gap:6px;}}
+@media (min-width:900px){.app{display:grid;grid-template-columns:1fr 330px;gap:14px;align-items:start;}.mapcard{margin-bottom:0;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>アメリカ50州名ゲーム 本格地図版</h1>
+<p class="lead">黄色で光った州の名前を、選択式または記入式で答えます。州境データを使った、より実際の地図に近い版です。</p>
+<div class="app">
+<section class="mapcard">
+<div class="tools"><span class="pill" id="rangeLabel">範囲：主要15州</span><span class="pill">本格地図版</span></div>
+<svg id="map" viewBox="0 0 975 610" role="img" aria-label="アメリカ合衆国50州の地図">
+<rect x="0" y="0" width="975" height="610" fill="#e7f5ff"></rect>
+<text x="28" y="40" fill="#5e7c98" font-size="22" font-weight="800">United States - 50 States</text>
+<text x="32" y="305" class="loading" id="loadingText">地図データを読み込み中...</text>
+<g id="states"></g><g id="labels"></g><g id="marker"></g>
+<text x="28" y="590" class="regionText">※州境データを利用した学習用地図です。アラスカ・ハワイは米国地図で一般的な差し込み位置に表示されます。</text>
+</svg>
+<div class="legend"><span><span class="sw" style="background:#ffe083"></span>今の問題</span><span><span class="sw" style="background:#b7ead0"></span>正解済み</span><span><span class="sw" style="background:#f8fafc"></span>出題範囲</span></div>
+<p class="small">※この本格地図版は、地図データ読み込みのため初回表示にインターネット接続が必要です。</p>
+</section>
+<aside class="panel">
+<div class="row"><label for="range">出題範囲</label><select id="range">
+<option value="main15">主要15州</option><option value="west">西部</option><option value="midwest">中西部</option><option value="south">南部</option><option value="northeast">北東部</option><option value="all">全部（50州）</option>
+</select></div>
+<div class="row"><label for="timeLimit">制限時間</label><select id="timeLimit">
+<option value="0">なし</option><option value="30">30秒</option><option value="60">1分</option><option value="120">2分</option><option value="180">3分</option><option value="300" selected>5分</option><option value="600">10分</option><option value="900">15分</option>
+</select></div>
+<div class="row"><label for="answerMode">解答方法</label><select id="answerMode"><option value="choice" selected>選択式（4択）</option><option value="input">記入式</option></select></div>
+<div class="score"><div><span>正解</span><b id="doneCount">0</b></div><div><span>残り</span><b id="leftCount">0</b></div><div><span>ミス</span><b id="missCount">0</b></div><div><span>時間</span><b id="timerText">--:--</b></div></div>
+<div class="row status" id="status">地図データを読み込んでいます。</div>
+<div class="row" id="choiceArea"><label>州名を選択</label><div id="choices" class="choiceGrid"><div class="small">地図読み込み後、「開始」を押すと選択肢が出ます。</div></div></div>
+<div class="row hidden" id="inputArea"><label for="answer">州名を記入</label><div class="inputGrid"><input id="answer" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="例：カリフォルニア" disabled><button id="check" disabled>判定</button></div></div>
+<div class="row grid"><button id="hintAbbr" class="secondary" disabled>第1ヒント：略号</button><button id="hintText" class="secondary" disabled>第2ヒント：文字</button></div>
+<div class="row grid"><button id="start" class="secondary" disabled>開始 / やり直し</button><button id="clear" class="ghost">リセット</button></div>
+<p class="small">記入式では日本語・英語名・州略号に対応しています。例：カリフォルニア、California、CA。</p>
+<p class="small">地図が読み込まれない場合は、Safariでインターネット接続を確認してください。</p>
+</aside>
+</div></div>
+<script>
+(function(){
+var STATES=[{"id":"AL","abbr":"AL","name":"Alabama","jp":"アラバマ","aliases":["アラバマ","Alabama","AL"],"groups":["south","all"]},{"id":"AK","abbr":"AK","name":"Alaska","jp":"アラスカ","aliases":["アラスカ","Alaska","AK"],"groups":["west","all"]},{"id":"AZ","abbr":"AZ","name":"Arizona","jp":"アリゾナ","aliases":["アリゾナ","Arizona","AZ"],"groups":["west","main15","all"]},{"id":"AR","abbr":"AR","name":"Arkansas","jp":"アーカンソー","aliases":["アーカンソー","Arkansas","AR","アーカンサス"],"groups":["south","all"]},{"id":"CA","abbr":"CA","name":"California","jp":"カリフォルニア","aliases":["カリフォルニア","California","CA","カルフォルニア"],"groups":["west","main15","all"]},{"id":"CO","abbr":"CO","name":"Colorado","jp":"コロラド","aliases":["コロラド","Colorado","CO"],"groups":["west","all"]},{"id":"CT","abbr":"CT","name":"Connecticut","jp":"コネチカット","aliases":["コネチカット","Connecticut","CT","コネティカット"],"groups":["northeast","all"]},{"id":"DE","abbr":"DE","name":"Delaware","jp":"デラウェア","aliases":["デラウェア","Delaware","DE","デラウエア"],"groups":["south","all"]},{"id":"FL","abbr":"FL","name":"Florida","jp":"フロリダ","aliases":["フロリダ","Florida","FL"],"groups":["south","main15","all"]},{"id":"GA","abbr":"GA","name":"Georgia","jp":"ジョージア","aliases":["ジョージア","Georgia","GA"],"groups":["south","main15","all"]},{"id":"HI","abbr":"HI","name":"Hawaii","jp":"ハワイ","aliases":["ハワイ","Hawaii","HI"],"groups":["west","all"]},{"id":"ID","abbr":"ID","name":"Idaho","jp":"アイダホ","aliases":["アイダホ","Idaho","ID"],"groups":["west","all"]},{"id":"IL","abbr":"IL","name":"Illinois","jp":"イリノイ","aliases":["イリノイ","Illinois","IL","イリノイス"],"groups":["midwest","main15","all"]},{"id":"IN","abbr":"IN","name":"Indiana","jp":"インディアナ","aliases":["インディアナ","Indiana","IN"],"groups":["midwest","all"]},{"id":"IA","abbr":"IA","name":"Iowa","jp":"アイオワ","aliases":["アイオワ","Iowa","IA"],"groups":["midwest","all"]},{"id":"KS","abbr":"KS","name":"Kansas","jp":"カンザス","aliases":["カンザス","Kansas","KS"],"groups":["midwest","all"]},{"id":"KY","abbr":"KY","name":"Kentucky","jp":"ケンタッキー","aliases":["ケンタッキー","Kentucky","KY"],"groups":["south","all"]},{"id":"LA","abbr":"LA","name":"Louisiana","jp":"ルイジアナ","aliases":["ルイジアナ","Louisiana","LA"],"groups":["south","all"]},{"id":"ME","abbr":"ME","name":"Maine","jp":"メイン","aliases":["メイン","Maine","ME","メーン"],"groups":["northeast","all"]},{"id":"MD","abbr":"MD","name":"Maryland","jp":"メリーランド","aliases":["メリーランド","Maryland","MD"],"groups":["south","all"]},{"id":"MA","abbr":"MA","name":"Massachusetts","jp":"マサチューセッツ","aliases":["マサチューセッツ","Massachusetts","MA"],"groups":["northeast","main15","all"]},{"id":"MI","abbr":"MI","name":"Michigan","jp":"ミシガン","aliases":["ミシガン","Michigan","MI"],"groups":["midwest","main15","all"]},{"id":"MN","abbr":"MN","name":"Minnesota","jp":"ミネソタ","aliases":["ミネソタ","Minnesota","MN"],"groups":["midwest","all"]},{"id":"MS","abbr":"MS","name":"Mississippi","jp":"ミシシッピ","aliases":["ミシシッピ","Mississippi","MS"],"groups":["south","all"]},{"id":"MO","abbr":"MO","name":"Missouri","jp":"ミズーリ","aliases":["ミズーリ","Missouri","MO"],"groups":["midwest","all"]},{"id":"MT","abbr":"MT","name":"Montana","jp":"モンタナ","aliases":["モンタナ","Montana","MT"],"groups":["west","all"]},{"id":"NE","abbr":"NE","name":"Nebraska","jp":"ネブラスカ","aliases":["ネブラスカ","Nebraska","NE"],"groups":["midwest","all"]},{"id":"NV","abbr":"NV","name":"Nevada","jp":"ネバダ","aliases":["ネバダ","Nevada","NV"],"groups":["west","all"]},{"id":"NH","abbr":"NH","name":"New Hampshire","jp":"ニューハンプシャー","aliases":["ニューハンプシャー","New Hampshire","NH"],"groups":["northeast","all"]},{"id":"NJ","abbr":"NJ","name":"New Jersey","jp":"ニュージャージー","aliases":["ニュージャージー","New Jersey","NJ"],"groups":["northeast","main15","all"]},{"id":"NM","abbr":"NM","name":"New Mexico","jp":"ニューメキシコ","aliases":["ニューメキシコ","New Mexico","NM"],"groups":["west","all"]},{"id":"NY","abbr":"NY","name":"New York","jp":"ニューヨーク","aliases":["ニューヨーク","New York","NY"],"groups":["northeast","main15","all"]},{"id":"NC","abbr":"NC","name":"North Carolina","jp":"ノースカロライナ","aliases":["ノースカロライナ","North Carolina","NC"],"groups":["south","main15","all"]},{"id":"ND","abbr":"ND","name":"North Dakota","jp":"ノースダコタ","aliases":["ノースダコタ","North Dakota","ND"],"groups":["midwest","all"]},{"id":"OH","abbr":"OH","name":"Ohio","jp":"オハイオ","aliases":["オハイオ","Ohio","OH"],"groups":["midwest","main15","all"]},{"id":"OK","abbr":"OK","name":"Oklahoma","jp":"オクラホマ","aliases":["オクラホマ","Oklahoma","OK"],"groups":["south","all"]},{"id":"OR","abbr":"OR","name":"Oregon","jp":"オレゴン","aliases":["オレゴン","Oregon","OR"],"groups":["west","all"]},{"id":"PA","abbr":"PA","name":"Pennsylvania","jp":"ペンシルベニア","aliases":["ペンシルベニア","Pennsylvania","PA","ペンシルバニア"],"groups":["northeast","main15","all"]},{"id":"RI","abbr":"RI","name":"Rhode Island","jp":"ロードアイランド","aliases":["ロードアイランド","Rhode Island","RI"],"groups":["northeast","all"]},{"id":"SC","abbr":"SC","name":"South Carolina","jp":"サウスカロライナ","aliases":["サウスカロライナ","South Carolina","SC"],"groups":["south","all"]},{"id":"SD","abbr":"SD","name":"South Dakota","jp":"サウスダコタ","aliases":["サウスダコタ","South Dakota","SD"],"groups":["midwest","all"]},{"id":"TN","abbr":"TN","name":"Tennessee","jp":"テネシー","aliases":["テネシー","Tennessee","TN"],"groups":["south","all"]},{"id":"TX","abbr":"TX","name":"Texas","jp":"テキサス","aliases":["テキサス","Texas","TX"],"groups":["south","main15","all"]},{"id":"UT","abbr":"UT","name":"Utah","jp":"ユタ","aliases":["ユタ","Utah","UT"],"groups":["west","all"]},{"id":"VT","abbr":"VT","name":"Vermont","jp":"バーモント","aliases":["バーモント","Vermont","VT","ヴァーモント"],"groups":["northeast","all"]},{"id":"VA","abbr":"VA","name":"Virginia","jp":"バージニア","aliases":["バージニア","Virginia","VA","ヴァージニア"],"groups":["south","main15","all"]},{"id":"WA","abbr":"WA","name":"Washington","jp":"ワシントン","aliases":["ワシントン","Washington","WA","ワシントン州"],"groups":["west","main15","all"]},{"id":"WV","abbr":"WV","name":"West Virginia","jp":"ウェストバージニア","aliases":["ウェストバージニア","West Virginia","WV","ウエストバージニア"],"groups":["south","all"]},{"id":"WI","abbr":"WI","name":"Wisconsin","jp":"ウィスコンシン","aliases":["ウィスコンシン","Wisconsin","WI","ウイスコンシン"],"groups":["midwest","all"]},{"id":"WY","abbr":"WY","name":"Wyoming","jp":"ワイオミング","aliases":["ワイオミング","Wyoming","WY"],"groups":["west","all"]}];
+var NAME_TO_ID={"Alabama":"AL","Alaska":"AK","Arizona":"AZ","Arkansas":"AR","California":"CA","Colorado":"CO","Connecticut":"CT","Delaware":"DE","Florida":"FL","Georgia":"GA","Hawaii":"HI","Idaho":"ID","Illinois":"IL","Indiana":"IN","Iowa":"IA","Kansas":"KS","Kentucky":"KY","Louisiana":"LA","Maine":"ME","Maryland":"MD","Massachusetts":"MA","Michigan":"MI","Minnesota":"MN","Mississippi":"MS","Missouri":"MO","Montana":"MT","Nebraska":"NE","Nevada":"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND","Ohio":"OH","Oklahoma":"OK","Oregon":"OR","Pennsylvania":"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD","Tennessee":"TN","Texas":"TX","Utah":"UT","Vermont":"VT","Virginia":"VA","Washington":"WA","West Virginia":"WV","Wisconsin":"WI","Wyoming":"WY"};
+var rangeNames={main15:'主要15州',west:'西部',midwest:'中西部',south:'南部',northeast:'北東部',all:'全部（50州）'};
+var state={range:'main15',queue:[],current:null,done:{},misses:0,activeIds:{},started:false,choices:[],wrongChoices:{},timeLimit:300,timeLeft:300,timerId:null,timeOver:false,answerMode:'choice',mapReady:false};
+var stateById={};
+for(var si=0;si<STATES.length;si++){stateById[STATES[si].id]=STATES[si];}
+function el(id){return document.getElementById(id);}
+function hasGroup(c,g){for(var i=0;i<c.groups.length;i++){if(c.groups[i]===g)return true;}return false;}
+function hasId(obj,id){return obj[id]===true;}
+function clearObj(o){for(var k in o){if(o.hasOwnProperty(k))delete o[k];}}
+function countObj(o){var n=0;for(var k in o){if(o.hasOwnProperty(k)&&o[k]===true)n++;}return n;}
+function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function normalizeText(s){s=(s||'')+'';s=s.replace(/^\s+|\s+$/g,'').toLowerCase();if(s.normalize){s=s.normalize('NFKC');}s=s.replace(/[\s　・･\.\-ー—–_,，、。()（）]/g,'');s=s.replace(/州$/g,'').replace(/state$/g,'');s=s.replace(/ヴ/g,'バ').replace(/ゔ/g,'ば');return s;}
+function shuffle(a){var r=a.slice(0);for(var i=r.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=r[i];r[i]=r[j];r[j]=t;}return r;}
+function activeStates(){var r=[];for(var i=0;i<STATES.length;i++){if(hasGroup(STATES[i],state.range))r.push(STATES[i]);}return r;}
+function setClass(node,cls){if(node&&node.getAttribute('class')!==cls)node.setAttribute('class',cls);}
+function pathFromCoords(coords){var d='';for(var i=0;i<coords.length;i++){var ring=coords[i];for(var j=0;j<ring.length;j++){var p=ring[j];d+=(j===0?'M ':' L ')+p[0].toFixed(1)+' '+p[1].toFixed(1);}d+=' Z ';}return d;}
+function featurePath(feature){var g=feature.geometry;if(!g)return'';if(g.type==='Polygon')return pathFromCoords(g.coordinates);if(g.type==='MultiPolygon'){var d='';for(var i=0;i<g.coordinates.length;i++)d+=pathFromCoords(g.coordinates[i]);return d;}return'';}
+function featureCentroid(feature){var xs=[],ys=[];function addRing(r){for(var i=0;i<r.length;i++){xs.push(r[i][0]);ys.push(r[i][1]);}}var g=feature.geometry;if(g.type==='Polygon'){for(var i=0;i<g.coordinates.length;i++)addRing(g.coordinates[i]);}else if(g.type==='MultiPolygon'){for(var a=0;a<g.coordinates.length;a++)for(var b=0;b<g.coordinates[a].length;b++)addRing(g.coordinates[a][b]);}if(!xs.length)return[0,0];return[(Math.min.apply(null,xs)+Math.max.apply(null,xs))/2,(Math.min.apply(null,ys)+Math.max.apply(null,ys))/2];}
+function labelFont(jp){var n=jp.length;if(n>=9)return 7;if(n>=7)return 8;if(n>=5)return 9;return 11;}
+function renderRealMap(features){var gs=el('states'),gl=el('labels');gs.innerHTML='';gl.innerHTML='';var loaded=0;
+  for(var i=0;i<features.length;i++){var f=features[i];var nm=f.properties&&f.properties.name;var id=NAME_TO_ID[nm];if(!id)continue;var c=stateById[id];if(!c)continue;
+    var d=featurePath(f);if(!d)continue;var cen=featureCentroid(f);c.x=cen[0];c.y=cen[1];c.d=d;
+    var p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',d);p.setAttribute('id','state-'+c.id);p.setAttribute('class','statePath');p.setAttribute('data-id',c.id);p.setAttribute('fill-rule','evenodd');gs.appendChild(p);
+    var tx=document.createElementNS('http://www.w3.org/2000/svg','text');tx.setAttribute('id','label-'+c.id);tx.setAttribute('class','stateLabel');tx.setAttribute('x',c.x);tx.setAttribute('y',c.y);tx.setAttribute('font-size',labelFont(c.jp));tx.appendChild(document.createTextNode(c.jp));gl.appendChild(tx);loaded++;
+  }
+  state.mapReady=loaded>=50;var lt=el('loadingText');if(lt)lt.style.display='none';el('start').disabled=!state.mapReady;
+  if(state.mapReady){setRange('main15');renderChoices();updateModeUI();updateTimerDisplay();el('status').innerHTML='「開始」を押してください。';}
+  else{el('status').innerHTML='<span class="bad">地図データの読み込みに失敗しました。</span><br>読み込めた州：'+loaded+' / 50';}
+}
+function loadMap(){fetch('https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json').then(function(r){return r.json();}).then(function(us){var features=topojson.feature(us,us.objects.states).features;renderRealMap(features);}).catch(function(err){var lt=el('loadingText');if(lt)lt.textContent='地図データを読み込めませんでした';el('status').innerHTML='<span class="bad">地図データを読み込めませんでした。</span><br>Safariでインターネット接続を確認してください。';});}
+function setRange(r){state.range=r;clearObj(state.activeIds);for(var i=0;i<STATES.length;i++){if(hasGroup(STATES[i],r))state.activeIds[STATES[i].id]=true;}el('rangeLabel').innerHTML='範囲：'+rangeNames[r];updateMap();updateScore();}
+function getAnswerMode(){var m='choice';try{m=el('answerMode').value||'choice';}catch(e){m='choice';}return m;}
+function updateModeUI(){var mode=getAnswerMode();state.answerMode=mode;var choiceArea=el('choiceArea'),inputArea=el('inputArea'),ans=el('answer'),check=el('check');if(choiceArea&&inputArea){if(mode==='input'){choiceArea.className='row hidden';inputArea.className='row';}else{choiceArea.className='row';inputArea.className='row hidden';}}if(ans)ans.disabled=!(state.started&&!state.timeOver&&mode==='input');if(check)check.disabled=!(state.started&&!state.timeOver&&mode==='input');}
+function clearInputBox(){var ans=el('answer');if(ans){ans.value='';ans.className='';}}
+function focusInputIfNeeded(){if(getAnswerMode()==='input')setTimeout(function(){try{el('answer').focus();}catch(e){}},80);}
+function stopTimer(){if(state.timerId){clearInterval(state.timerId);state.timerId=null;}}
+function getSelectedTimeLimit(){var v=0;try{v=parseInt(el('timeLimit').value,10)||0;}catch(e){v=0;}return v;}
+function formatTime(sec){if(sec<=0)return'0:00';var m=Math.floor(sec/60),s=sec%60;return m+':'+(s<10?'0':'')+s;}
+function updateTimerDisplay(){var t=el('timerText');if(!t)return;if(!state.started&&!state.timeOver){var lim=getSelectedTimeLimit();t.innerHTML=(lim>0?formatTime(lim):'なし');t.className='';return;}if(state.timeLimit<=0){t.innerHTML='なし';t.className='';return;}t.innerHTML=formatTime(state.timeLeft);t.className=(state.timeLeft<=10&&state.started)?'timeWarn':'';}
+function startTimer(){stopTimer();state.timeLimit=getSelectedTimeLimit();state.timeLeft=state.timeLimit;state.timeOver=false;updateTimerDisplay();if(state.timeLimit>0){state.timerId=setInterval(function(){state.timeLeft--;if(state.timeLeft<=0){state.timeLeft=0;updateTimerDisplay();timeUp();}else updateTimerDisplay();},1000);}}
+function lockAnswers(){var box=el('choices');if(box){var buttons=box.getElementsByTagName('button');for(var i=0;i<buttons.length;i++){buttons[i].disabled=true;buttons[i].className=buttons[i].className+' locked';}}if(el('answer'))el('answer').disabled=true;if(el('check'))el('check').disabled=true;}
+function timeUp(){if(state.timeOver)return;stopTimer();state.timeOver=true;state.started=false;el('hintAbbr').disabled=true;el('hintText').disabled=true;updateModeUI();lockAnswers();var done=countObj(state.done),total=activeStates().length;el('status').className='row status timeUp';el('status').innerHTML='<span class="bad">時間切れ！</span><br>結果：'+done+' / '+total+'州正解、ミス：'+state.misses+'回。<br><span class="small">「開始 / やり直し」で同じ設定でもう一度できます。</span>';updateTimerDisplay();}
+function startGame(){if(!state.mapReady){el('status').innerHTML='<span class="bad">地図データを読み込み中です。</span>';return;}var a=activeStates();stopTimer();state.queue=shuffle(a);clearObj(state.done);clearObj(state.wrongChoices);state.choices=[];state.misses=0;state.started=true;state.current=null;state.timeOver=false;state.answerMode=getAnswerMode();el('status').className='row status';el('hintAbbr').disabled=false;el('hintText').disabled=false;clearInputBox();updateModeUI();startTimer();nextQuestion();}
+function makeChoices(correct){var pool=[],all=activeStates();for(var i=0;i<all.length;i++){if(all[i].id!==correct.id)pool.push(all[i]);}pool=shuffle(pool);var n=4;if(all.length<4)n=all.length;var arr=[correct];for(var j=0;j<pool.length&&arr.length<n;j++)arr.push(pool[j]);return shuffle(arr);}
+function renderChoices(){var box=el('choices');if(!box)return;if(!state.current){box.innerHTML='<div class="small">'+(state.mapReady?'「開始」を押すと選択肢が出ます。':'地図読み込み後、「開始」を押すと選択肢が出ます。')+'</div>';return;}var html='';for(var i=0;i<state.choices.length;i++){var c=state.choices[i],cls='choiceBtn';if(state.wrongChoices[c.id]===true)cls+=' wrongChoice';html+='<button type="button" class="'+cls+'" data-id="'+c.id+'" '+(state.timeOver?'disabled':'')+'>'+escapeHtml(c.jp)+'</button>';}box.innerHTML=html;var buttons=box.getElementsByTagName('button');for(var j=0;j<buttons.length;j++)buttons[j].onclick=function(){chooseAnswer(this.getAttribute('data-id'),this);};}
+function nextQuestion(){clearObj(state.wrongChoices);if(state.queue.length===0){stopTimer();state.current=null;state.started=false;state.choices=[];el('hintAbbr').disabled=true;el('hintText').disabled=true;el('marker').innerHTML='';clearInputBox();updateModeUI();el('status').className='row status';var timeMsg='';if(state.timeLimit>0)timeMsg='<br>残り時間：'+formatTime(state.timeLeft);el('status').innerHTML='<span class="ok">完成！</span><br>この範囲の州名をすべて地図に書き込めました。ミス：'+state.misses+'回'+timeMsg;renderChoices();updateMap();updateScore();updateTimerDisplay();return;}state.current=state.queue[0];state.choices=makeChoices(state.current);clearInputBox();updateModeUI();var modeText=(getAnswerMode()==='input')?'州名を記入してください。':'州名を選択してください。';el('status').className='row status';el('status').innerHTML='<b>問題 '+(countObj(state.done)+1)+'</b><br>黄色で光っている州の名前を'+modeText;renderChoices();updateMap();updateScore();focusInputIfNeeded();}
+function isCorrectName(c,typed){var t=normalizeText(typed);if(!t)return false;var list=[c.jp,c.name,c.abbr];for(var i=0;i<(c.aliases||[]).length;i++)list.push(c.aliases[i]);for(var j=0;j<list.length;j++){if(normalizeText(list[j])===t)return true;}return false;}
+function correctCurrent(){var c=state.current;state.done[c.id]=true;state.queue.shift();el('status').className='row status';el('status').innerHTML='<span class="ok">正解！</span> '+c.jp+' を地図に書き込みました。';updateMap();updateScore();setTimeout(nextQuestion,600);}
+function chooseAnswer(id,btn){if(!state.current||state.timeOver||getAnswerMode()!=='choice')return;var c=state.current;if(id===c.id){if(btn)btn.className='choiceBtn correctChoice';correctCurrent();}else{state.misses++;state.wrongChoices[id]=true;el('status').className='row status';el('status').innerHTML='<span class="bad">まだ違います。</span><br>正解するまで次に進めません。別の州名を選んでください。';renderChoices();updateScore();}}
+function checkTypedAnswer(){if(!state.current||state.timeOver||getAnswerMode()!=='input')return;var ans=el('answer');if(isCorrectName(state.current,ans?ans.value:'')){if(ans)ans.className='';correctCurrent();}else{state.misses++;if(ans){ans.className='wrong';try{ans.select();}catch(e){}}el('status').className='row status';el('status').innerHTML='<span class="bad">まだ違います。</span><br>正解するまで次に進めません。もう一度入力してください。';updateScore();focusInputIfNeeded();}}
+function showAbbrHint(){if(!state.current||state.timeOver)return;el('status').className='row status';el('status').innerHTML='第1ヒント：州略号です。<div class="hintBox">'+escapeHtml(state.current.abbr)+'</div><span class="small">州略号を参考にして、州名を答えてください。</span>';focusInputIfNeeded();}
+function showTextHint(){if(!state.current||state.timeOver)return;var jp=state.current.jp,clean=jp.replace(/[・]/g,'');el('status').className='row status';el('status').innerHTML='第2ヒント：<b>'+jp.charAt(0)+'</b> から始まります。文字数の目安：'+clean.length+'文字。<br><span class="small">答えは表示しません。選択式なら正解を選び、記入式なら州名を入力してください。</span>';focusInputIfNeeded();}
+function updateScore(){var done=countObj(state.done),total=activeStates().length;el('doneCount').innerHTML=done;el('leftCount').innerHTML=Math.max(0,total-done);el('missCount').innerHTML=state.misses;}
+function updateMap(){for(var i=0;i<STATES.length;i++){var c=STATES[i],r=el('state-'+c.id),l=el('label-'+c.id);if(!r||!l)continue;var cls='statePath';if(!hasId(state.activeIds,c.id))cls+=' dim';if(hasId(state.done,c.id)){cls+=' done';setClass(l,'stateLabel show');}else setClass(l,'stateLabel');if(state.current&&state.current.id===c.id)cls+=' target';setClass(r,cls);}var gm=el('marker');gm.innerHTML='';if(state.current){var c=state.current;var t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('class','targetMark');t.setAttribute('x',c.x);t.setAttribute('y',c.y-18);t.appendChild(document.createTextNode('？'));gm.appendChild(t);}}
+function resetGame(msg){stopTimer();clearObj(state.done);clearObj(state.wrongChoices);state.queue=[];state.current=null;state.choices=[];state.started=false;state.timeOver=false;state.answerMode=getAnswerMode();state.timeLimit=getSelectedTimeLimit();state.timeLeft=state.timeLimit;state.misses=0;el('hintAbbr').disabled=true;el('hintText').disabled=true;el('marker').innerHTML='';clearInputBox();updateModeUI();el('status').className='row status';el('status').innerHTML=msg;renderChoices();updateMap();updateScore();updateTimerDisplay();}
+function bind(){el('range').onchange=function(){setRange(this.value);resetGame('範囲を変更しました。「開始」を押してください。');};el('timeLimit').onchange=function(){resetGame('制限時間を変更しました。「開始」を押してください。');};el('answerMode').onchange=function(){resetGame('解答方法を変更しました。「開始」を押してください。');};el('start').onclick=startGame;el('clear').onclick=function(){resetGame('リセットしました。「開始」を押すと始まります。');};el('hintAbbr').onclick=showAbbrHint;el('hintText').onclick=showTextHint;el('check').onclick=checkTypedAnswer;el('answer').onkeydown=function(e){e=e||window.event;var k=e.key||e.keyCode;if(k==='Enter'||k===13){checkTypedAnswer();return false;}};}
+try{bind();updateModeUI();updateTimerDisplay();loadMap();}catch(err){var st=document.getElementById('status');if(st)st.innerHTML='<span class="bad">読み込みエラー：</span>'+err.message;}
+})();
+</script>
+</body>
+</html>
